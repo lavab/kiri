@@ -162,6 +162,8 @@ func (s *Store) Start() error {
 		return err
 	}
 
+	s.Kiri.QueryLock.Unlock()
+
 	receiver := make(chan *etcd.Response)
 	stop := make(chan bool)
 

@@ -8,10 +8,11 @@ import (
 )
 
 type Kiri struct {
-	Etcd     *etcd.Client
-	Stores   []*Store
-	Services map[string]*Service
-	sync.Mutex
+	Etcd       *etcd.Client
+	Stores     []*Store
+	Services   map[string]*Service
+	StoresLock sync.Mutex
+	QueryLock  sync.RWMutex
 }
 
 func New(addresses []string) *Kiri {
@@ -23,6 +24,8 @@ func New(addresses []string) *Kiri {
 }
 
 func (k *Kiri) Store(format Format, path string) {
+	k.QueryLock.Lock()
+
 	store := &Store{
 		Format: format,
 		Path:   path,
@@ -44,15 +47,18 @@ func (k *Kiri) Register(name string, address string, tags map[string]interface{}
 		Tags:    tags,
 	}
 
-	k.Lock()
+	k.StoresLock.Lock()
 	k.Services[name] = service
 	for _, store := range k.Stores {
 		store.Update <- struct{}{}
 	}
-	k.Unlock()
+	k.StoresLock.Unlock()
 }
 
 func (k *Kiri) Query(name string, tags map[string]interface{}) ([]*Service, error) {
+	k.QueryLock.RLock()
+	defer k.QueryLock.RUnlock()
+
 	result := []*Service{}
 
 	// Fill the lookup table with data from stores
