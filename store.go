@@ -76,14 +76,18 @@ func (s *Store) Reload() error {
 
 	resp, err := s.Kiri.Etcd.Get(s.Path, true, true)
 	if err != nil {
+		log.Print(err)
 		return err
 	}
+
+	foundNodes := map[string]struct{}{}
 
 	for _, node := range resp.Node.Nodes {
 		name := node.Key[len(s.Path)+1:]
 
 		services, err := s.DecodeKey(name, node.Value)
 		if err != nil {
+			log.Print(err)
 			return err
 		}
 
@@ -110,11 +114,15 @@ func (s *Store) Reload() error {
 			if needChanges {
 				data, err := s.EncodeKey(services)
 				if err != nil {
+					log.Print(err)
 					return err
 				}
 
-				_, err = s.Kiri.Etcd.Set(node.Key, string(data), 0)
+				log.Printf("Setting %s - %s", node.Key, string(data))
+
+				_, err = s.Kiri.Etcd.Set(node.Key, string(data), 60*60*48)
 				if err != nil {
+					log.Print(err)
 					return err
 				}
 
@@ -123,6 +131,27 @@ func (s *Store) Reload() error {
 		}
 
 		s.RemoteServices[name] = services
+		foundNodes[name] = struct{}{}
+	}
+
+	// Add missing
+	for _, service := range s.Kiri.Services {
+		if _, ok := foundNodes[service.Name]; !ok {
+			data, err := s.EncodeKey([]*Service{
+				service,
+			})
+			if err != nil {
+				return err
+			}
+
+			_, err = s.Kiri.Etcd.Set(s.Path+"/"+service.Name, string(data), 60*60*48)
+			if err != nil {
+				log.Print(err)
+				return err
+			}
+
+			log.Printf("Added service discovery for key %s", s.Path+"/"+service.Name)
+		}
 	}
 
 	return nil

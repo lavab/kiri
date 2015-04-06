@@ -1,6 +1,7 @@
 package kiri
 
 import (
+	"log"
 	"sync"
 
 	"github.com/coreos/go-etcd/etcd"
@@ -15,7 +16,9 @@ type Kiri struct {
 
 func New(addresses []string) *Kiri {
 	return &Kiri{
-		Etcd: etcd.NewClient(addresses),
+		Etcd:     etcd.NewClient(addresses),
+		Services: map[string]*Service{},
+		Stores:   []*Store{},
 	}
 }
 
@@ -27,7 +30,11 @@ func (k *Kiri) Store(format Format, path string) {
 		Update: make(chan struct{}),
 	}
 	k.Stores = append(k.Stores, store)
-	go store.Start()
+	go func() {
+		if err := store.Start(); err != nil {
+			log.Print(err)
+		}
+	}()
 }
 
 func (k *Kiri) Register(name string, address string, tags map[string]interface{}) {
