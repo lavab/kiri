@@ -11,10 +11,11 @@ import (
 )
 
 type Store struct {
-	Format Format
-	Path   string
-	Kiri   *Kiri
-	Update chan struct{}
+	Format         Format
+	Path           string
+	Kiri           *Kiri
+	Update         chan struct{}
+	RemoteServices map[string][]*Service
 	sync.Mutex
 }
 
@@ -23,7 +24,11 @@ func (s *Store) DecodeKey(name string, input string) ([]*Service, error) {
 
 	if s.Format == Default {
 		if err := json.Unmarshal([]byte(input), &result); err != nil {
-			return err
+			return nil, err
+		}
+
+		for _, service := range result {
+			service.Name = name
 		}
 	} else if s.Format == Puro {
 		lines := strings.Split(input, "\n")
@@ -35,12 +40,39 @@ func (s *Store) DecodeKey(name string, input string) ([]*Service, error) {
 		}
 	}
 
-	return result
+	return result, nil
+}
+
+func (s *Store) EncodeKey(input []*Service) ([]byte, error) {
+	result := []byte{}
+
+	if s.Format == Default {
+		var err error
+		result, err = json.Marshal(input)
+		if err != nil {
+			return nil, err
+		}
+	} else if s.Format == Puro {
+		for _, service := range input {
+			result = append(result, []byte(service.Address+"\n")...)
+		}
+
+		if len(result) > 0 {
+			// Trim last newline
+			result = result[:len(result)-2]
+		}
+	}
+
+	return result, nil
 }
 
 func (s *Store) Reload() error {
 	s.Lock()
 	defer s.Unlock()
+
+	log.Print("Reloading the service discovery")
+
+	s.RemoteServices = map[string][]*Service{}
 
 	resp, err := s.Kiri.Etcd.Get(s.Path, true, true)
 	if err != nil {
@@ -50,12 +82,12 @@ func (s *Store) Reload() error {
 	for _, node := range resp.Node.Nodes {
 		name := node.Key[len(s.Path)+1:]
 
-		if local, ok := s.Kiri.Services[name]; ok {
-			services, err := s.DecodeKey(name, node.Value)
-			if err != nil {
-				return err
-			}
+		services, err := s.DecodeKey(name, node.Value)
+		if err != nil {
+			return err
+		}
 
+		if local, ok := s.Kiri.Services[name]; ok {
 			needChanges := false
 			foundLocal := false
 
@@ -75,12 +107,25 @@ func (s *Store) Reload() error {
 				needChanges = true
 			}
 
-			// TODO: Encode
+			if needChanges {
+				data, err := s.EncodeKey(services)
+				if err != nil {
+					return err
+				}
 
-			// TODO: Set the key
-			// s.Kiri.Etcd.Set(key, value, ttl)
+				_, err = s.Kiri.Etcd.Set(node.Key, string(data), 0)
+				if err != nil {
+					return err
+				}
+
+				log.Printf("Updated the service discovery for key %s", node.Key)
+			}
 		}
+
+		s.RemoteServices[name] = services
 	}
+
+	return nil
 }
 
 func (s *Store) Start() error {
@@ -108,4 +153,6 @@ func (s *Store) Start() error {
 	if err != nil {
 		return err
 	}
+
+	return nil
 }
