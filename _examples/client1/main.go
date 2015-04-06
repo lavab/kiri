@@ -13,6 +13,7 @@ func main() {
 		"http://10.10.20.51:4001",
 	})
 	sd.Store(kiri.Default, "/kiri")
+	sd.Store(kiri.Puro, "/puro/backends")
 
 	matched, err := sd.Query("api-master", nil)
 	if err != nil {

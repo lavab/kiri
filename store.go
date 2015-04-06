@@ -1,6 +1,7 @@
 package kiri
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
 	"reflect"
@@ -59,7 +60,7 @@ func (s *Store) EncodeKey(input []*Service) ([]byte, error) {
 
 		if len(result) > 0 {
 			// Trim last newline
-			result = result[:len(result)-2]
+			result = bytes.TrimSpace(result)
 		}
 	}
 

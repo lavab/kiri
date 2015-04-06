@@ -12,5 +12,6 @@ func main() {
 	})
 	sd.Register("api-master", "10.10.100.10:8000", nil)
 	sd.Store(kiri.Default, "/kiri")
+	sd.Store(kiri.Puro, "/puro/backends")
 	select {}
 }
