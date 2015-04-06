@@ -4,6 +4,9 @@
 
 Service discovery library based on etcd. Contains a format compatible with puro.
 
+One of the basic part's of Lavaboom's cloud setup. It was not designed with performance
+in mind, but we will eventually rework it to reduce execution locks.
+
 ## Requirements
 
  - etcd
