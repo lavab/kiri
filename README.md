@@ -11,8 +11,6 @@ in mind, but we will eventually rework it to reduce execution locks.
 
  - etcd
 
-## How it works
-
 ## Examples 
 
 ### service example
