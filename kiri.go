@@ -115,3 +115,16 @@ func (k *Kiri) Query(name string, tags map[string]interface{}) ([]*Service, erro
 
 	return result, nil
 }
+
+func (k *Kiri) Remove(name string, address string) error {
+	k.QueryLock.Lock()
+	defer k.QueryLock.Unlock()
+
+	for _, store := range k.Stores {
+		if err := store.Delete(name, address); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

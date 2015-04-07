@@ -188,3 +188,35 @@ func (s *Store) Start() error {
 
 	return nil
 }
+
+func (s *Store) Delete(name string, address string) error {
+	s.Lock()
+	defer s.Unlock()
+
+	services, ok := s.RemoteServices[name]
+	if !ok {
+		return nil
+	}
+
+	i := -1
+
+	for id, service := range services {
+		if service.Address == address {
+			i = id
+			break
+		}
+	}
+
+	// Delete i from s.RemoteServices[name]
+	copy(s.RemoteServices[name][i:], s.RemoteServices[name][i+1:])
+	s.RemoteServices[name][len(s.RemoteServices[name])-1] = nil
+	s.RemoteServices[name] = s.RemoteServices[name][:len(s.RemoteServices[name])-1]
+
+	data, err := s.EncodeKey(s.RemoteServices[name])
+	if err != nil {
+		return err
+	}
+
+	_, err = s.Kiri.Etcd.Set(s.Path+"/"+name, string(data), 60*60*48)
+	return err
+}
