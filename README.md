@@ -22,7 +22,7 @@ sd.Store(kiri.Default, "/kiri")
 sd.Register("api-master", "10.10.20.38:8000", nil)
 ```
 
-### discovery client
+### query servers
 
 ```go
 sd := kiri.New([]string{
@@ -39,6 +39,30 @@ if err != nil {
 
 for _, match := range matched {
     log.Print(match.Address)
+}
+```
+
+### discover a server
+
+```go
+sd := kiri.New([]string{
+    "http://10.10.20.49:4001",
+    "http://10.10.20.50:4001",
+    "http://10.10.20.51:4001",
+})
+sd.Store(kiri.Default, "/kiri")
+
+var conn *r.Connection
+err := sd.Discover("rethinkdb", nil, func(service *Service) {
+    var err error
+    conn, err = r.NewConnection(&r.ConnectOpts{
+        Address: service.Address,
+    })
+    // If err != nil, then it'll remove that server from the service discovery
+    return err
+})
+if err != nil {
+    log.Fatal(err)
 }
 ```
 
