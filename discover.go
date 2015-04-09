@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	rr     map[string]int
+	rr     = map[string]int{}
 	rrLock sync.Mutex
 
 	ErrNoServices = errors.New("No services left")
