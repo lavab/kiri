@@ -53,6 +53,8 @@ func (k *Kiri) Discover(name string, tags map[string]interface{}, cb DiscoverFun
 			if err != nil {
 				return err
 			}
+		} else {
+			return nil
 		}
 
 		i++
